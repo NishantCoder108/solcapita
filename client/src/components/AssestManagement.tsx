@@ -1,21 +1,63 @@
-import { PROTOCOL_CONFIG, UI_ELEMENTS } from '@/constants'
-import { motion } from 'framer-motion'
-import React, { useState } from 'react'
-import { Card, CardContent, CardDescription, CardTitle, CardHeader } from './ui/card'
-import { ArrowRightLeft } from 'lucide-react'
-import { Tabs, TabsContent, TabsTrigger, TabsList } from './ui/tabs'
-import { Input } from './ui/input'
-import { CustomTooltip } from './ui/custom-tooltip'
-import { Button } from './ui/button'
-import { LoadingSpinner } from './ui/loading-spinner'
+import { PROTOCOL_CONFIG, UI_ELEMENTS } from "@/constants";
+import { motion } from "framer-motion";
+import React, { useEffect, useState } from "react";
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardTitle,
+    CardHeader,
+} from "./ui/card";
+import { ArrowRightLeft } from "lucide-react";
+import { Tabs, TabsContent, TabsTrigger, TabsList } from "./ui/tabs";
+import { Input } from "./ui/input";
+import { CustomTooltip } from "./ui/custom-tooltip";
+import { Button } from "./ui/button";
+import { LoadingSpinner } from "./ui/loading-spinner";
+import {
+    calculateDailyRewards,
+    getStakedTokenBalance,
+    getUserBalance,
+} from "@/utils/wallet";
+import { useWallet } from "@solana/wallet-adapter-react";
 
 const AssestManagement = () => {
-    const [amount, setAmount] = useState<string>("")
-    const [isLoading, setIsLoading] = useState(false)
+    const [amount, setAmount] = useState<string>("");
+    const [isLoading, setIsLoading] = useState(false);
+    const { publicKey } = useWallet();
+    const [stakedTokenBalance, setStakedTokenBalance] = useState<number>(0);
+
+    const [userBal, setUserBal] = useState<number>(0);
+
+    const fetchBal = async () => {
+        if (!publicKey) return;
+        const balance = await getUserBalance(publicKey);
+        console.log({ balance });
+
+        setUserBal(balance);
+    };
+
+    const fetchStakedTokenBalance = async () => {
+        try {
+            if (!publicKey) return;
+
+            const balanceToken = await getStakedTokenBalance(publicKey);
+
+            setStakedTokenBalance(balanceToken);
+        } catch (error) {
+            console.log({ error });
+
+            setStakedTokenBalance(0);
+        }
+    };
+
+    useEffect(() => {
+        fetchBal();
+        fetchStakedTokenBalance();
+    }, [publicKey]);
+
     return (
         <>
-
-
             <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -44,14 +86,11 @@ const AssestManagement = () => {
                                 <div>
                                     <div className="flex justify-between items-center mb-2">
                                         <label className="text-sm text-gray-400">
-                                            Amount ({PROTOCOL_CONFIG.NATIVE_TOKEN})
+                                            Amount (
+                                            {PROTOCOL_CONFIG.NATIVE_TOKEN})
                                         </label>
                                         <span className="text-xs text-gray-400">
-                                            Balance:9
-
-                                            {/* {formatAmount(balance.sol)}  */}
-
-
+                                            Balance: {userBal}
                                             {PROTOCOL_CONFIG.NATIVE_TOKEN}
                                         </span>
                                     </div>
@@ -60,40 +99,66 @@ const AssestManagement = () => {
                                             type="number"
                                             placeholder={`Enter ${PROTOCOL_CONFIG.NATIVE_TOKEN} amount`}
                                             value={amount}
-                                            onChange={(e) => setAmount(e.target.value)}
+                                            onChange={(e) =>
+                                                setAmount(e.target.value)
+                                            }
                                             className="bg-white/10 border-white/20 text-white placeholder:text-gray-500 pr-20"
                                             min={PROTOCOL_CONFIG.MIN_STAKE}
-                                            max={PROTOCOL_CONFIG.MAX_STAKE}
+                                            max={userBal}
                                             disabled={isLoading}
                                         />
                                         <button
                                             className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-purple-400 hover:text-purple-300"
-                                        // onClick={() => setAmount(balance.sol)}
+                                            onClick={() => setAmount("10")}
                                         >
                                             MAX
                                         </button>
                                     </div>
                                     <div className="mt-4 space-y-2">
-                                        <CustomTooltip content={UI_ELEMENTS.TOOLTIPS.REWARDS}>
+                                        <CustomTooltip
+                                            content={
+                                                UI_ELEMENTS.TOOLTIPS.REWARDS
+                                            }
+                                        >
                                             <div className="flex justify-between items-center">
                                                 <span className="text-sm text-gray-400">
-                                                    {UI_ELEMENTS.CARDS.MANAGEMENT.REWARDS}
+                                                    {
+                                                        UI_ELEMENTS.CARDS
+                                                            .MANAGEMENT.REWARDS
+                                                    }
                                                 </span>
-                                                <span className="text-green-400">
-                                                    {/* {estimatedRewards} */}
-                                                    0
-
-                                                    {PROTOCOL_CONFIG.TOKEN_SYMBOL}/day
+                                                <span className="text-green-400 text-sm  font-semibold">
+                                                    <span className="px-1">
+                                                        {calculateDailyRewards(
+                                                            stakedTokenBalance,
+                                                            12
+                                                        )}
+                                                    </span>
+                                                    {
+                                                        PROTOCOL_CONFIG.TOKEN_SYMBOL
+                                                    }
+                                                    /day
                                                 </span>
                                             </div>
                                         </CustomTooltip>
-                                        <CustomTooltip content={UI_ELEMENTS.TOOLTIPS.LOCK_PERIOD}>
+                                        <CustomTooltip
+                                            content={
+                                                UI_ELEMENTS.TOOLTIPS.LOCK_PERIOD
+                                            }
+                                        >
                                             <div className="flex justify-between items-center">
                                                 <span className="text-sm text-gray-400">
-                                                    {UI_ELEMENTS.CARDS.ANALYTICS.LOCK_PERIOD}
+                                                    {
+                                                        UI_ELEMENTS.CARDS
+                                                            .ANALYTICS
+                                                            .LOCK_PERIOD
+                                                    }
                                                 </span>
-                                                <span className="text-white">
-                                                    {PROTOCOL_CONFIG.DEFAULT_LOCK_PERIOD} days
+                                                <span className="text-white pl-3 font-semibold text-sm">
+                                                    {
+                                                        PROTOCOL_CONFIG.DEFAULT_LOCK_PERIOD
+                                                    }{" "}
+                                                    days
                                                 </span>
                                             </div>
                                         </CustomTooltip>
@@ -105,8 +170,8 @@ const AssestManagement = () => {
                                 >
                                     <Button
                                         className="w-full bg-purple-600 hover:bg-purple-700 relative overflow-hidden"
-                                    // disabled={isLoading || !amount || parseFloat(amount) <= 0}
-                                    // onClick={handleDeposit}
+                                        // disabled={isLoading || !amount || parseFloat(amount) <= 0}
+                                        // onClick={handleDeposit}
                                     >
                                         {isLoading ? (
                                             <LoadingSpinner />
@@ -123,7 +188,8 @@ const AssestManagement = () => {
                     </CardContent>
                 </Card>
             </motion.div>
-        </>)
-}
+        </>
+    );
+};
 
-export default AssestManagement
+export default AssestManagement;

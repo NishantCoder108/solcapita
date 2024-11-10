@@ -1,4 +1,3 @@
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "./ui/hover-card";
 import { PROTOCOL_CONFIG, PROTOCOL_MESSAGES, UI_ELEMENTS } from "@/constants";
 import {
     DropdownMenu,
