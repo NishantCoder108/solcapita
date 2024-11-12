@@ -13,19 +13,33 @@ import { burnToken, mintToken, sendNativeToken } from "./transfers";
 import { getAssociatedTokenAddress } from "@solana/spl-token";
 import bs58 from "bs58";
 import mongoose from "mongoose";
+import { Server } from "socket.io";
+import http from "http";
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
 
-app.use(express.json()); //when json data will come , application/json
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 const PORT = process.env.PORT || 3000;
+io.on("connection", (socket) => {
+    console.log("Client connected : ", socket.id);
 
-mongoose.connect(process.env.MONGO_URI || "mongodb://localhost:27017/solana").then(() => {
-    console.log("Connected to MongoDB");
-}).catch((err) => {
-    console.log("Error connecting to MongoDB", err);
+    socket.on("disconnect", () => {
+        console.log("Client Disconnected ", socket.id);
+    });
 });
+
+mongoose
+    .connect(process.env.MONGO_URI || "mongodb://localhost:27017/solana")
+    .then(() => {
+        console.log("Connected to MongoDB");
+    })
+    .catch((err) => {
+        console.log("Error connecting to MongoDB", err);
+    });
 
 const transactionSchema = new mongoose.Schema({
     txnHash: String,
@@ -36,7 +50,11 @@ const transactionSchema = new mongoose.Schema({
 const DBTransaction = mongoose.model("DBTransaction", transactionSchema);
 
 export async function saveTransaction(txnHash: string, type: string) {
-    const transaction = new DBTransaction({ txnHash, type, createdAt: new Date() })
+    const transaction = new DBTransaction({
+        txnHash,
+        type,
+        createdAt: new Date(),
+    });
 
     try {
         await transaction.save();
@@ -87,8 +105,14 @@ app.post("/webhook", async (req: Request, res: Response) => {
     console.log("Req body: ", req.body);
     try {
         const webhookAuth = req.headers.authorization;
-        const { type, nativeTransfers, feePayer, description, tokenTransfers, signature } =
-            req.body[0];
+        const {
+            type,
+            nativeTransfers,
+            feePayer,
+            description,
+            tokenTransfers,
+            signature,
+        } = req.body[0];
 
         console.log({
             webhookAuth,
@@ -105,7 +129,6 @@ app.post("/webhook", async (req: Request, res: Response) => {
 
         // const VAULT = ATA_ADDRESS;
 
-
         const mintATAAddress = await getAssociatedTokenAddress(
             new PublicKey(MINT_TOKEN_ADDRESS),
             new PublicKey(stakingPoolWallet)
@@ -118,8 +141,9 @@ app.post("/webhook", async (req: Request, res: Response) => {
         // }
 
         if (type === "TRANSFER" && AUTH_WEBHOOK_HEADERS === webhookAuth) {
-
-            const findSignature = await DBTransaction.findOne({ txnHash: signature });
+            const findSignature = await DBTransaction.findOne({
+                txnHash: signature,
+            });
             if (findSignature) {
                 console.log("Already processed");
                 res.json({ message: "Already processed" });
@@ -142,14 +166,16 @@ app.post("/webhook", async (req: Request, res: Response) => {
 
                 const { amount, fromUserAccount, toUserAccount } =
                     nativeTransfers?.[0];
+                io.emit("mintingStart", { message: "Minting in Progress..." });
 
                 await mintToken(fromUserAccount, amount, conn);
                 await saveTransaction(signature, "MINT");
-
+                io.emit("mintingComplete", {
+                    message:
+                        "Minting completed successfully. Your assets are now secure.",
+                });
                 return;
             }
-
-
 
             if (Array.isArray(tokenTransfers) && tokenTransfers.length > 0) {
                 // const incomingStakeTxns = tokenTransfers.find((item) => item.)
@@ -191,7 +217,6 @@ app.post("/webhook", async (req: Request, res: Response) => {
                 );
 
                 await saveTransaction(signature, "BURN");
-
             }
         } else {
             res.json({
@@ -202,6 +227,11 @@ app.post("/webhook", async (req: Request, res: Response) => {
     } catch (error) {
         console.log(error);
 
+        io.emit("assetManagementError", {
+            message:
+                "An unexpected issue has occurred. Please try again later.",
+        });
+
         res.json({
             message: "Internal Server Error",
         });
@@ -209,19 +239,17 @@ app.post("/webhook", async (req: Request, res: Response) => {
 });
 
 app.get("/", (req, res) => {
-    const pKey = privateKey;
-    console.log({ pKey });
+    // const keypair = Keypair.fromSecretKey(bs58.decode(pKey));
+    // console.log({ keypair });
+    // const publicKey = keypair.publicKey.toString();
 
-    const keypair = Keypair.fromSecretKey(bs58.decode(pKey));
-    console.log({ keypair });
-    const publicKey = keypair.publicKey.toString();
+    // console.log("Derived Public Key:", publicKey);
 
-    console.log("Derived Public Key:", publicKey);
     res.json({
         message: "Hello Nishant!",
     });
 });
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
     console.log("Application is running on port : ", PORT);
 });
