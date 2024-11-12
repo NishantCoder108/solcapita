@@ -15,10 +15,14 @@ import {
     VersionedTransaction,
     Transaction,
 } from "@solana/web3.js";
-import { Request, Response } from "express";
-import { MINT_TOKEN_ADDRESS, privateKey, stakingPoolWallet } from "./constant";
+
 import bs58 from "bs58";
-import { saveTransaction } from ".";
+import {
+    MINT_TOKEN_ADDRESS,
+    privateKey,
+    stakingPoolWallet,
+} from "../config/env";
+
 export const mintToken = async (
     fromUserAccount: string,
     amount: number,
@@ -26,7 +30,6 @@ export const mintToken = async (
 ) => {
     console.log("Minting Token...");
 
-    // first we will create associated token account , it will first create associated token account from incoming address and mint the token
     const associatedToken = await getOrCreateAssociatedTokenAccount(
         conn,
         Keypair.fromSecretKey(bs58.decode(privateKey)), //payer ( private key is string here)
@@ -46,7 +49,6 @@ export const mintToken = async (
     );
 
     console.log("Minted Token : ", mintedToken);
-    // await saveTransaction(mintedToken, "mint");
     console.log(
         `Minted ${amount * LAMPORTS_PER_SOL}  token to ${fromUserAccount}`
     );
@@ -72,7 +74,7 @@ export const burnToken = async (
         Keypair.fromSecretKey(bs58.decode(privateKey)), //signer
         associatedToken.address, //burn token from user's ata
         new PublicKey(MINT_TOKEN_ADDRESS),
-        Keypair.fromSecretKey(bs58.decode(process.env.UserKey || "")),//user keypair to burn the token
+        Keypair.fromSecretKey(bs58.decode(process.env.UserKey || "")), //user keypair to burn the token
         amount * LAMPORTS_PER_SOL
     );
 
@@ -86,7 +88,6 @@ export const sendNativeToken = async (
     conn: Connection,
     mintATAAddress: PublicKey
 ) => {
-
     const keypair = Keypair.fromSecretKey(bs58.decode(privateKey));
 
     // const transaction = new Transaction().add(
@@ -103,12 +104,13 @@ export const sendNativeToken = async (
         new PublicKey(fromUserAccount)
     );
 
-    const transaction = new Transaction().add(createTransferInstruction(
-        mintATAAddress,//source ATA
-        userATA.address,//destination ATA
-        keypair.publicKey,//payer
-        amount * LAMPORTS_PER_SOL
-    )
+    const transaction = new Transaction().add(
+        createTransferInstruction(
+            mintATAAddress, //source ATA
+            userATA.address, //destination ATA
+            keypair.publicKey, //payer
+            amount * LAMPORTS_PER_SOL
+        )
     );
     // const { blockhash } = await conn.getLatestBlockhash();
 
@@ -121,7 +123,7 @@ export const sendNativeToken = async (
 
     try {
         const signature = await sendAndConfirmTransaction(conn, transaction, [
-            keypair
+            keypair,
         ]);
         console.log({ signature });
     } catch (error) {
