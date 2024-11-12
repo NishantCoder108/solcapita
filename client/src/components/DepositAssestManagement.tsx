@@ -1,5 +1,5 @@
 import { PROTOCOL_CONFIG, UI_ELEMENTS } from "@/constants";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Input } from "./ui/input";
 import { calculateDailyRewards } from "@/utils/wallet";
 import { CustomTooltip } from "./ui/custom-tooltip";
@@ -10,25 +10,30 @@ import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 import { MINTER_PUBLIC_KEY, TOKEN_MINT_ADDRESS } from "@/constants/wallet";
 import { Transaction } from "@solana/web3.js";
-import { Connection, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { RPC_URL } from "@/constants/wallet";
+import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { getAssociatedTokenAddress } from "@solana/spl-token";
+import { toast } from "sonner";
+import { AlertCircle, CheckCircle } from "lucide-react";
+import { useSocket } from "@/contexts/SocketContext";
 
-const DepositAssestManagement = ({
+export default function DepositAssestManagement({
     userBal,
     stakedTokenBalance,
 }: {
     userBal: number;
     stakedTokenBalance: number;
-}) => {
+}) {
     const [amount, setAmount] = useState<string>("");
     const [isLoading, setIsLoading] = useState(false);
+    const [btnText, setBtnText] = useState<string>(UI_ELEMENTS.BUTTONS.DEPOSIT);
     const { publicKey, sendTransaction } = useWallet();
     const { connection } = useConnection();
+    const [isMinting, setMinting] = useState(false);
 
+    const socket = useSocket();
+    console.log({ socket });
     const handleDeposit = async () => {
         setIsLoading(true);
-        // TODO: Implement deposit logic
 
         try {
             if (!publicKey) throw new Error("Wallet not connected");
@@ -63,9 +68,74 @@ const DepositAssestManagement = ({
             );
 
             console.log({ confirmTransaction });
+            setMinting(true);
+            setIsLoading(false);
         } catch (error) {
             console.log({ error });
+            setIsLoading(false);
         }
+    };
+
+    useEffect(() => {
+        if (!socket) return;
+
+        const handleConnect = () => {
+            console.log("Deposit Management Socket is connected");
+        };
+
+        const handleMintingStart = (data: { message: string }) => {
+            setMinting((prev) => (!prev ? true : prev));
+            setBtnText(data.message);
+        };
+
+        const handleMintingComplete = (data: { message: string }) => {
+            setBtnText(UI_ELEMENTS.BUTTONS.DEPOSIT);
+            setMinting(false);
+            showMintingSuccessToast(data.message);
+        };
+
+        const handleAssetManagementError = (data: { message: string }) => {
+            setBtnText(UI_ELEMENTS.BUTTONS.DEPOSIT);
+            setMinting(false);
+            toast.error(data.message || "An unexpected issue has occurred");
+        };
+
+        const handleDisconnect = () => {
+            setBtnText(UI_ELEMENTS.BUTTONS.DEPOSIT);
+            setMinting(false);
+            toast.error(
+                "Connection lost. Please check your network and try again.",
+                {
+                    className:
+                        "bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-md",
+                    icon: <AlertCircle className="w-6 h-6 text-red-500 mr-2" />,
+                    duration: 2000,
+                }
+            );
+        };
+
+        socket.on("connect", handleConnect);
+        socket.on("mintingStart", handleMintingStart);
+        socket.on("mintingComplete", handleMintingComplete);
+        socket.on("assetManagementError", handleAssetManagementError);
+        socket.on("disconnect", handleDisconnect);
+
+        return () => {
+            socket.off("connect", handleConnect);
+            socket.off("mintingStart", handleMintingStart);
+            socket.off("mintingComplete", handleMintingComplete);
+            socket.off("assetManagementError", handleAssetManagementError);
+            socket.off("disconnect", handleDisconnect);
+        };
+    }, [socket]);
+
+    const showMintingSuccessToast = (message: string) => {
+        toast(message, {
+            className:
+                "flex items-center bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded shadow-md",
+            duration: 5000,
+            icon: <CheckCircle className="w-6 h-6 text-green-500 mr-2" />,
+        });
     };
 
     return (
@@ -131,18 +201,17 @@ const DepositAssestManagement = ({
             <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                 <Button
                     className="w-full bg-purple-600 hover:bg-purple-700 relative overflow-hidden"
-                    disabled={isLoading || !amount || parseFloat(amount) <= 0}
+                    disabled={
+                        isLoading ||
+                        isMinting ||
+                        !amount ||
+                        parseFloat(amount) <= 0
+                    }
                     onClick={handleDeposit}
                 >
-                    {isLoading ? (
-                        <LoadingSpinner />
-                    ) : (
-                        UI_ELEMENTS.BUTTONS.DEPOSIT
-                    )}
+                    {isLoading ? <LoadingSpinner /> : btnText}
                 </Button>
             </motion.div>
         </div>
     );
-};
-
-export default DepositAssestManagement;
+}

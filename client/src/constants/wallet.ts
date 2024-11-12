@@ -1,4 +1,5 @@
-export const RPC_URL = import.meta.env.VITE_RPC_URL || "https://api.devnet.solana.com"
+export const RPC_URL =
+    import.meta.env.VITE_RPC_URL || "https://api.devnet.solana.com";
 
 export const WALLET_LABELS = {
     "change-wallet": "Change wallet",
@@ -10,8 +11,10 @@ export const WALLET_LABELS = {
     "no-wallet": "Connect Wallet Securely",
 } as const;
 
+export const TOKEN_MINT_ADDRESS = import.meta.env
+    .VITE_TOKEN_MINT_ADDRESS as string;
 
+export const MINTER_PUBLIC_KEY = import.meta.env
+    .VITE_MINTER_PUBLIC_KEY as string;
 
-export const TOKEN_MINT_ADDRESS = import.meta.env.VITE_TOKEN_MINT_ADDRESS as string;
-
-export const MINTER_PUBLIC_KEY = import.meta.env.VITE_MINTER_PUBLIC_KEY as string;
+export const WEBHOOK_URL = import.meta.env.VITE_WEBHOOK_URL as string;

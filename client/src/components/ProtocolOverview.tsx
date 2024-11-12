@@ -17,6 +17,7 @@ import {
     getTotalStakedBal,
 } from "@/utils/wallet";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 
 const ProtocolOverview = () => {
     const [stakedTokenBalance, setStakedTokenBalance] = useState(0);
@@ -43,7 +44,7 @@ const ProtocolOverview = () => {
 
             const balanceToken = await getStakedTokenBalance(wallet.publicKey);
 
-            setStakedTokenBalance(balanceToken);
+            setStakedTokenBalance(Number(balanceToken) / LAMPORTS_PER_SOL);
         } catch (error) {
             console.log({ error });
         } finally {
@@ -128,7 +129,10 @@ const ProtocolOverview = () => {
                                     {truncateDecimals(userShare)}%
                                 </span>
                             </div>
-                            <Progress value={userShare} className="h-2" />
+                            <Progress
+                                value={Number(truncateDecimals(userShare))}
+                                className="h-2"
+                            />
                         </div>
                     </CardContent>
                 </Card>

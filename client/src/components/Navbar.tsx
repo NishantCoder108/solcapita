@@ -8,9 +8,21 @@ import {
 import { Button } from "./ui/button";
 import { ChevronDown, Shield } from "lucide-react";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { toast } from "sonner";
+import { useSocket } from "@/contexts/SocketContext";
 
 const Navbar = () => {
     const { publicKey, connected, disconnect } = useWallet();
+    const socket = useSocket();
+
+    const disconnectWallet = () => {
+        disconnect();
+        toast.success("Wallet disconnected successfully");
+
+        if (socket) {
+            socket.disconnect();
+        }
+    };
     return (
         <>
             <div className="flex flex-col md:flex-row justify-between items-center mb-8">
@@ -40,7 +52,7 @@ const Navbar = () => {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="">
                                     <DropdownMenuItem
-                                        onClick={() => disconnect()}
+                                        onClick={disconnectWallet}
                                         className="cursor-pointer "
                                     >
                                         {UI_ELEMENTS.BUTTONS.DISCONNECT}
